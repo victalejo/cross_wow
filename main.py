@@ -11,9 +11,17 @@ VIC.connect()
 activo = "EURUSD-OTC"
 expiracion = 1
 velas_q = 100
+operaciones_totales = int(input('numero de tiradas: '))
+posibles_ganados = int(input('posibles ganados: '))
+d = VIC.get_all_profit()
+profit = 100 * d[activo]["turbo"]
+wl = None
+
+app = ms.masanielloSH(int(profit), VIC.get_balance())
+matriz = app.EntryDataMasanielloFutureInvesment(app.Matrix(posibles_ganados, operaciones_totales)) #posibles_ganados, operaciones
 
 while True:
-
+    proxima_inversion = app.ExecuteInvestment(matrizResult=matriz)
     velas = VIC.get_candles(activo, (int(expiracion) * 60), 10, time.time())
 
     ultimo = round(velas[0]['close'], 4)
@@ -49,17 +57,23 @@ while True:
     ema51 = round(salida2[-1], 5)
     ema52 = round(salida2[-2], 5)
 
-    print("debe ser igual la ema 20 {} y ema 5 {} y mayor o menor la ema 20 {} y la ema 5 {}".format(ema202, ema52, ema201, ema51))
+    #print("debe ser igual la ema 20 {} y ema 5 {} y mayor o menor la ema 20 {} y la ema 5 {}".format(ema202, ema52, ema201, ema51))
     if ema202 == ema52 and ema51 > ema201:
-        VIC.buy(50, activo, "call", 1)
-    elif ema202 == ema52 and ema51 < ema201:
-        VIC.buy(50, activo, "put", 1)
-"""    d = VIC.get_all_profit()
+        print("Compra")
+        check, id = VIC.buy(50, activo, "call", 1)
+        gan = VIC.check_win_v3(id)
+        if gan > 0:
+            wl = "w"
+        else:
+            wl = "l"
+        app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)  # pwl posibles ganados
 
-    print('Activo:', activo,
-          '| pago:', d,
-          '| precio:', precio,
-          '| hora:', round(time.time() - inicio, 2), 's',
-          '| TVela:', datetime.fromtimestamp(int(velas[-1]['at']) // 1000000000).strftime('%H:%M:%S'),
-          'CCI:', cci
-          )"""
+    elif ema202 == ema52 and ema51 < ema201:
+        print("Venta")
+        check, id = VIC.buy(50, activo, "put", 1)
+        gan = VIC.check_win_v3(id)
+        if gan > 0:
+            wl = "w"
+        else:
+            wl = "l"
+        app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)  # pwl posibles ganados
