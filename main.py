@@ -6,30 +6,7 @@ import masaniello as ms
 from talib import EMA, SMA
 import numpy as np
 
-VIC = IQ_Option("valejoapps@gmail.com", "Victor18")
-VIC.connect()
-activo = "EURUSD-OTC"
-expiracion = 1
-velas_q = 100
-operaciones_totales = int(input('numero de tiradas: '))
-posibles_ganados = int(input('posibles ganados: '))
-d = VIC.get_all_profit()
-profit = 100 * d[activo]["turbo"]
-wl = None
-
-app = ms.masanielloSH(int(profit), VIC.get_balance())
-matriz = app.EntryDataMasanielloFutureInvesment(app.Matrix(posibles_ganados, operaciones_totales)) #posibles_ganados, operaciones
-
-while True:
-    proxima_inversion = app.ExecuteInvestment(matrizResult=matriz)
-    velas = VIC.get_candles(activo, (int(expiracion) * 60), 10, time.time())
-
-    ultimo = round(velas[0]['close'], 4)
-    primeiro = round(velas[-1]['close'], 4)
-    # if now.minute == 0 and now.second in se or now.minute == 5 and now.second in se or now.minute == 10 and now.second in se or now.minute == 15 and now.second in se or now.minute == 20 and now.second in se or now.minute == 25 and now.second in se or now.minute == 30 and now.second in se or now.minute == 35 and now.second in se or now.minute == 40 and now.second in se or now.minute == 45 and now.second in se or now.minute == 50 and now.second in se or now.minute == 55 and now.second in se:
-
-    inicio = time.time()
-    # print(inicio)
+def analisis(VIC, activo, velas_q):
 
     velas = VIC.get_candles(activo, 60, velas_q, time.time())
 
@@ -51,29 +28,78 @@ while True:
     salida1 = SMA(dados_f['close'], timeperiod=20)
     salida2 = EMA(dados_f['close'], timeperiod=5)
 
-    precio = round(velas[-1]['close'], 5)
     ema201 = round(salida1[-1], 5)
     ema202 = round(salida1[-2], 5)
     ema51 = round(salida2[-1], 5)
     ema52 = round(salida2[-2], 5)
 
-    #print("debe ser igual la ema 20 {} y ema 5 {} y mayor o menor la ema 20 {} y la ema 5 {}".format(ema202, ema52, ema201, ema51))
-    if ema202 == ema52 and ema51 > ema201:
-        print("Compra")
-        check, id = VIC.buy(50, activo, "call", 1)
-        gan = VIC.check_win_v3(id)
-        if gan > 0:
-            wl = "w"
-        else:
-            wl = "l"
-        app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)  # pwl posibles ganados
+    return ema201, ema202, ema51, ema52
 
-    elif ema202 == ema52 and ema51 < ema201:
-        print("Venta")
-        check, id = VIC.buy(50, activo, "put", 1)
-        gan = VIC.check_win_v3(id)
-        if gan > 0:
-            wl = "w"
-        else:
-            wl = "l"
-        app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)  # pwl posibles ganados
+def mariano(profit, VIC, posibles_ganados, operaciones_totales, balance):
+    app = ms.masanielloSH(int(profit), balance)
+    matriz = app.EntryDataMasanielloFutureInvesment(
+        app.Matrix(posibles_ganados, operaciones_totales))
+    return matriz, app
+
+def compra(proxima_inversion, VIC, activo):
+    check, id = VIC.buy(proxima_inversion, activo, "call", 1)
+    gan = VIC.check_win_v3(id)
+    if gan > 0:
+        wl = "w"
+    else:
+        wl = "l"
+    return wl
+
+def venta(proxima_inversion, VIC, activo):
+    check, id = VIC.buy(proxima_inversion, activo, "put", 1)
+    gan = VIC.check_win_v3(id)
+    if gan > 0:
+        wl = "w"
+    else:
+        wl = "l"
+    return wl
+
+def logica(VIC, activo, velas_q, posibles_ganados, profit, operaciones_totales, balance):
+    operaciones = 0
+    ganados = 0
+    matriz, app = mariano(profit, VIC, posibles_ganados, operaciones_totales, balance)
+    while True:
+        ema201, ema202, ema51, ema52 = analisis(VIC, activo, velas_q)
+        proxima_inversion = app.ExecuteInvestment(matrizResult=matriz)
+        analisis(VIC, activo, velas_q)
+        if ema202 == ema52 and ema51 > ema201:
+            wl = compra(proxima_inversion, VIC, activo)
+            if wl == "w":
+                ganados += 1
+            operaciones += 1
+            app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)
+            if ganados == posibles_ganados:
+                break
+        elif ema202 == ema52 and ema51 < ema201:
+            wl = venta(proxima_inversion, VIC, activo)
+            if wl == "w":
+                ganados += 1
+            operaciones += 1
+            app.ExecuteMasaniello(WL_input=wl, wind=posibles_ganados)
+            if ganados == posibles_ganados:
+                break
+    print("Lo has logrado, vamos de nuevo...")
+    logica(VIC, activo, velas_q, app, posibles_ganados, profit, operaciones_totales)
+
+
+def main():
+    VIC = IQ_Option("valejoapps@gmail.com", "Victor18")
+    VIC.connect()
+    VIC.change_balance(input("REAL O PRACTICA: "))
+    activo = input("Activo: ")
+    balance = int(input("Balance: "))
+    expiracion = 1
+    velas_q = 100
+    operaciones_totales = int(input('numero de tiradas: '))
+    posibles_ganados = int(input('posibles ganados: '))
+    d = VIC.get_all_profit()
+    profit = 100 * d[activo]["turbo"]
+    logica(VIC, activo, velas_q, posibles_ganados, profit, operaciones_totales, balance)
+
+if __name__ == '__main__':
+    main()
